@@ -280,36 +280,6 @@ header{background:rgba(9,9,9,.97);backdrop-filter:blur(16px);border-bottom:1px s
     </div>
   </div>
 
-  <!-- DRM panel -->
-  <div class="drm-panel">
-    <div class="drm-head">🔐 STATUS TEKNIS</div>
-    <div class="drm-grid">
-      <div class="drm-cell">
-        <div class="drm-lbl">Format</div>
-        <div class="drm-val"><div class="sd"></div>M3U8 / HLS</div>
-      </div>
-      <div class="drm-cell">
-        <div class="drm-lbl">Player</div>
-        <div class="drm-val"><div class="sd"></div>HLS.js v1.4.12</div>
-      </div>
-      <div class="drm-cell">
-        <div class="drm-lbl">ClearKey DRM</div>
-        <div class="drm-val"><div class="sd off" id="dCK"></div><span id="vCK">Tidak Aktif</span></div>
-      </div>
-      <div class="drm-cell">
-        <div class="drm-lbl">Widevine DRM</div>
-        <div class="drm-val"><div class="sd off" id="dWV"></div><span id="vWV">Tidak Aktif</span></div>
-      </div>
-      <div class="drm-cell">
-        <div class="drm-lbl">EME / MSE</div>
-        <div class="drm-val" id="emeV">—</div>
-      </div>
-      <div class="drm-cell">
-        <div class="drm-lbl">Stream Aktif</div>
-        <div class="drm-val" id="activeStream" style="font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px">—</div>
-      </div>
-    </div>
-  </div>
 </section>
 
 <!-- ── SIDEBAR ── -->
@@ -387,7 +357,6 @@ function init() {
 
   buildCatTabs();
   applyFilter();
-  checkEME();
 }
 
 // ════════════════════════════════════
@@ -456,8 +425,17 @@ function catEmoji(cat) {
   return '🏆';
 }
 
+function formatTanggal(tgl) {
+  // "2026-06-08" → "08 Jun 2026"
+  if (!tgl) return '';
+  const [y,mo,d] = tgl.split('-');
+  if (!y||!mo||!d) return tgl;
+  const bulan = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  return `${d} ${bulan[+mo]||mo} ${y}`;
+}
+
 function parseTime(wib) {
-  // format: "06-06-2026 18:30 WIB"
+  // "09-06-2026 01:45 WIB" → "01:45"
   if (!wib) return '';
   const parts = wib.split(' ');
   return parts[1] || '';
@@ -474,6 +452,7 @@ function renderList() {
     const isOn = current?.id === m.id;
     const emoji = catEmoji(m.category);
     const timeStr = parseTime(m.waktu_wib);
+    const tglStr  = formatTanggal(m.tanggal_pertandingan);
 
     // logos
     let logoHtml;
@@ -500,6 +479,7 @@ function renderList() {
       </div>
       <div class="ch-right">
         <div class="ch-time">${timeStr}</div>
+        ${tglStr ? `<div class="upcoming-lbl">${tglStr}</div>` : ''}
         ${liveHtml}
       </div>
     </div>`;
@@ -556,12 +536,16 @@ function updateInfoBar(m) {
   }
 
   document.getElementById('infoTitle').textContent = m.title;
+
+  const tglFmt = formatTanggal(m.tanggal_pertandingan);
   document.getElementById('infoSub').textContent =
-    `${m.category||'Sport'} • ${m.waktu_wib||''} • ${m.is_live ? '🔴 SEDANG LIVE' : '⏱ Segera'}`;
+    `${m.category||'Sport'} • ${tglFmt ? tglFmt + ' • ' : ''}${m.waktu_wib||''} • ${m.is_live ? '🔴 SEDANG LIVE' : '⏱ Segera'}`;
 
   const tagRow = document.getElementById('tagRow');
   const livePart = m.is_live ? '<span class="tag live">🔴 LIVE</span>' : '';
-  tagRow.innerHTML = `${livePart}<span class="tag cat">${m.category||'Sport'}</span><span class="tag hls">M3U8 / HLS</span><span class="tag wib">${m.waktu_wib||''}</span>`;
+  const tglPart  = tglFmt ? `<span class="tag wib">📅 ${tglFmt}</span>` : '';
+  const jamPart  = m.waktu_wib ? `<span class="tag wib">⏰ ${parseTime(m.waktu_wib)}</span>` : '';
+  tagRow.innerHTML = `${livePart}<span class="tag cat">${m.category||'Sport'}</span><span class="tag hls">M3U8 / HLS</span>${tglPart}${jamPart}`;
 
   // active stream display
   document.getElementById('activeStream').textContent = (curStreams[0]?.m3u8 || '').slice(0,60) + '...';
